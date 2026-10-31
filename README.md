@@ -9,6 +9,7 @@ The original `AMOEBA.C` and `conio.h` are unchanged.
 | File | What it is |
 |---|---|
 | `amoeba.cpp` | The fixed game. |
+| `amoeba_lookahead.cpp` | The same screen and rules, with a computer that looks 3 or 4 of its own moves ahead. It calls `amoeba.cpp`; it does not replace it. |
 | `conio_fixed.h` | A fixed copy of `conio.h`, the terminal layer `amoeba.cpp` uses. |
 | `tests/test_amoeba.cpp` | Unit tests: scoring, winner detection, move choice, saving and loading. |
 | `tests/pty_test.py` | End-to-end tests that play the real program through a pseudo-terminal. |
@@ -51,6 +52,30 @@ AMOEBA_SEED=42 ./amoeba
 `AMOEBA_SEED` must be a decimal number; any other value is ignored and the clock is used.
 
 The program exits with status 0 after `n`. It exits with status 1 if its input is closed (end of file), where the original spun forever.
+
+## Playing the 3- or 4-move computer
+
+`amoeba_lookahead.cpp` is a second program with the same screen, keys, saves, and rules. You still play **X** and the computer plays **O**. The computer looks 3 of its own moves ahead, or 4 if you ask for that. For each try it predicts your reply by calling `pointto_m()` in `amoeba.cpp` (the move `./amoeba` would play there). It tries a win in 2 of its own moves first, then in more moves up to that depth, and plays the first move of the shortest line that ends with it making five. Otherwise it plays the `./amoeba` move. Scores come from `minimax()` in `amoeba.cpp`.
+
+Build it from this folder. The command compiles `amoeba_lookahead.cpp` only; that file includes `amoeba.cpp`.
+
+```bash
+clang++ -std=c++11 -Wall -Wextra -O2 -o amoeba_lookahead amoeba_lookahead.cpp
+```
+
+```bash
+./amoeba_lookahead
+```
+
+```bash
+./amoeba_lookahead 4
+```
+
+`./amoeba_lookahead` and `./amoeba_lookahead 3` look up to 3 moves ahead. `./amoeba_lookahead 4` looks up to 4 ahead. Any other argument prints `usage: amoeba_lookahead [3|4]` and exits with status 1.
+
+Both depths are much slower than `./amoeba`, which takes about 10 ms a move (see *Lookahead* below). A whole move measured about 200–350 ms on average at depth 3 (slowest about 4.1 s) and about 300–750 ms at depth 4 (slowest about 8.1 s). These figures come from games between computer players, with 10 games running at once on 10 cores. Each move tries the 2-move search first and then the longer ones, so a move with no short win pays for all of them.
+
+The keys are the same as `./amoeba`. Saves go to the same `save1` … `save5` files. `AMOEBA_SEED` fixes tie-breaking. Every engine call starts again from that seed, including each predicted reply and the computer's own move when no forcing line is found. Within one run the same position always gets the same computer move. In `./amoeba` the tie-break sequence keeps going, so the same position can be played differently later in the game.
 
 ## Running the tests
 
